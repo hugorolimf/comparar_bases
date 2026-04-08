@@ -105,6 +105,8 @@ def main() -> int:
     console.print(f"\n[green]Chave de pareamento selecionada:[/green] {key_column}")
 
     console.print("\n[bold]Agora escolha as colunas que vão ajudar a identificar os diffs no resultado final.[/bold]")
+    console.print("[dim]A ordem escolhida no primeiro arquivo será usada para montar os pares no segundo arquivo.[/dim]")
+    console.print("[dim]Se a ordem estiver errada, escolha novamente antes de confirmar.[/dim]")
     show_profile_columns(base_profile)
     base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
     show_profile_columns(compare_profile)
@@ -124,6 +126,7 @@ def main() -> int:
         console.print("\n[bold]Pares de identificação selecionados:[/bold]")
         for base_column, compare_column in diff_key_pairs:
             console.print(f"  {base_column} -> {compare_column}")
+        console.print("[dim]A ordem acima foi ajustada com base na seleção do primeiro arquivo.[/dim]")
         if confirm_profile("Confirma?"):
             break
         console.print("[yellow]Vamos selecionar as colunas novamente.[/yellow]")
@@ -138,6 +141,8 @@ def main() -> int:
             base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
             show_profile_columns(compare_profile)
             compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
+
+    console.print("[cyan]Processando...[/cyan]")
 
     result = compare_excels(
         base_path,

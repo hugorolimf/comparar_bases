@@ -13,15 +13,21 @@ O script vai perguntar:
 1. Número do Excel base, escolhido a partir da pasta `excel`.
 2. Número do Excel de comparação, escolhido a partir da mesma pasta.
 3. Número da aba de cada arquivo.
-4. Número da chave sugerida a partir do match entre os dois arquivos.
+4. Chave sugerida a partir do match entre os dois arquivos, com indicação da opção recomendada.
 5. Pasta e nome de saída.
 
-Antes da escolha da chave, o script mostra os melhores matches encontrados entre as colunas de ambos os arquivos.
+Antes da escolha da chave, o script mostra os melhores matches encontrados entre as colunas de ambos os arquivos e destaca a melhor sugestão.
 
 ## Saídas
 
-- Arquivo `.xlsx` com resumo, mapeamento de colunas e diferenças.
+- Arquivo `.xlsx` com abas `Resumo`, `Mapeamento`, `Adição`, `Exclusão`, `Alteração` e `Igual`.
 - Arquivo `.json` com a mesma estrutura para automação.
+
+## Exportação
+
+- `excel_diff/reporting/excel_report.py`: exportação exclusiva para Excel.
+- `excel_diff/reporting/json_report.py`: exportação exclusiva para JSON.
+- `excel_diff/reporting/report_writer.py`: orquestra os dois módulos sem misturar a lógica.
 
 ## Estrutura
 

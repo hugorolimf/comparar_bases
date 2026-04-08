@@ -16,6 +16,7 @@ EXCEL_FOLDER = PROJECT_ROOT / "excel"
 def main() -> int:
     print("Comparador inteligente de Excel")
     print("------------------------------")
+    print("Fluxo guiado: escolha os arquivos, depois as abas e por fim a chave sugerida.")
 
     excel_files = list_excel_files(EXCEL_FOLDER)
     if len(excel_files) < 2:
@@ -34,6 +35,9 @@ def main() -> int:
 
     base_sheets = list_sheets(base_path)
     compare_sheets = list_sheets(compare_path)
+
+    print(f"\nArquivo base selecionado: {Path(base_path).name}")
+    print(f"Arquivo de comparação selecionado: {Path(compare_path).name}")
 
     print("\nAbas disponíveis na base:")
     show_sheet_options(base_sheets)
@@ -65,7 +69,7 @@ def main() -> int:
     show_key_candidates(key_candidates[:10])
 
     key_column = choose_key_column(key_candidates)
-    print(f"Chave selecionada: {key_column}")
+    print(f"\nChave selecionada: {key_column}")
 
     result = compare_excels(
         base_path,
@@ -118,7 +122,9 @@ def ask_file_choice(prompt: str, options: list[Path]) -> str:
         if value.isdigit():
             index = int(value) - 1
             if 0 <= index < len(options):
-                return str(options[index])
+                selected = options[index]
+                print(f"Selecionado: {selected.name}")
+                return str(selected)
         print("Escolha inválida. Digite apenas o número do arquivo na lista.")
 
 
@@ -126,11 +132,14 @@ def ask_sheet_choice(prompt: str, options: list[str], default: str) -> str:
     while True:
         value = input(f"{prompt} [número, padrão: {default}]: ").strip()
         if not value:
+            print(f"Selecionado: {default}")
             return default
         if value.isdigit():
             index = int(value) - 1
             if 0 <= index < len(options):
-                return options[index]
+                selected = options[index]
+                print(f"Selecionado: {selected}")
+                return selected
         print("Escolha inválida. Digite apenas o número da aba na lista.")
 
 
@@ -142,23 +151,27 @@ def show_sheet_options(options: list[str]) -> None:
 def show_profile(label: str, profile) -> None:
     print(f"\n{label}:")
     print(f"  Aba: {profile.sheet_name}")
+    print(f"  Linhas amostradas: {profile.sample_row_count}")
     print(f"  Cabeçalhos detectados: {', '.join(profile.headers[:10])}")
     print(f"  Sugestões de chave: {', '.join(profile.key_suggestions[:5])}")
 
 
 def show_key_candidates(candidates) -> None:
     for candidate in candidates:
+        recommendation = " (recomendado)" if candidate.index == 1 else ""
         print(
-            f"  {candidate.index}. Base: {candidate.base_column} -> Comparação: {candidate.compare_column} "
-            f"[match={candidate.score:.2f}, base_unicidade={candidate.base_unique_ratio:.2f}, "
-            f"comparacao_unicidade={candidate.compare_unique_ratio:.2f}]"
+            f"  {candidate.index}. {candidate.base_column} -> {candidate.compare_column}{recommendation}"
+        )
+        print(
+            f"     match={candidate.score:.2f} | base_unicidade={candidate.base_unique_ratio:.2f} | "
+            f"comparacao_unicidade={candidate.compare_unique_ratio:.2f} | tipo_base={candidate.base_type} | tipo_comparacao={candidate.compare_type}"
         )
 
 
 def choose_key_column(candidates) -> str:
     suggested = candidates[0].base_column
     while True:
-        choice = input(f"Informe o número da chave [padrão: {suggested}]: ").strip()
+        choice = input(f"Escolha a chave desejada [Enter = {suggested}]: ").strip()
         if not choice:
             return suggested
         if choice.isdigit():

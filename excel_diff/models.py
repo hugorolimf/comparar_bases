@@ -67,6 +67,8 @@ class RowDiff:
     base_row_number: int | None
     compare_row_number: int | None
     status: str
+    base_values: dict[str, Any] = field(default_factory=dict)
+    compare_values: dict[str, Any] = field(default_factory=dict)
     changes: list[dict[str, Any]] = field(default_factory=list)
 
 

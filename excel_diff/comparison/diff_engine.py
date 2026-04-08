@@ -111,6 +111,8 @@ def build_diff_rows(
                         base_row_number=base_record["row_number"],
                         compare_row_number=compare_record["row_number"],
                         status="changed" if changes else "matched",
+                        base_values=base_record["values"],
+                        compare_values=compare_record["values"],
                         changes=changes,
                     )
                 )
@@ -121,6 +123,8 @@ def build_diff_rows(
                         base_row_number=base_record["row_number"],
                         compare_row_number=None,
                         status="only_in_base",
+                        base_values=base_record["values"],
+                        compare_values={},
                         changes=[],
                     )
                 )
@@ -131,6 +135,8 @@ def build_diff_rows(
                         base_row_number=None,
                         compare_row_number=compare_record["row_number"],
                         status="only_in_compare",
+                        base_values={},
+                        compare_values=compare_record["values"],
                         changes=[],
                     )
                 )

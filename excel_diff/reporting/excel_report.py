@@ -63,10 +63,11 @@ def write_column_mappings(workbook: Workbook, result: ComparisonResult) -> None:
 def write_diff_sheet(workbook: Workbook, sheet_name: str, rows: list, result: ComparisonResult) -> None:
     sheet = workbook.create_sheet(sheet_name)
     headers = ["Categoria", "Chave", "Linha Base", "Linha Comparacao", "Status"]
+    headers.extend([f"Base - {column}" for column in result.base_profile.headers])
     for pair in result.diff_key_pairs:
         headers.extend([
-            f"Base - {pair.base_column}",
-            f"Comparacao - {pair.compare_column}",
+            f"Diff Base - {pair.base_column}",
+            f"Diff Comparacao - {pair.compare_column}",
             f"Diff - {pair.base_column} x {pair.compare_column}",
         ])
     sheet.append(headers)
@@ -75,6 +76,7 @@ def write_diff_sheet(workbook: Workbook, sheet_name: str, rows: list, result: Co
 
     for row in rows:
         values = [sheet_name, row.key, row.base_row_number, row.compare_row_number, row.status]
+        values.extend([row.base_values.get(column) for column in result.base_profile.headers])
         for identifier in row.diff_identifiers:
             base_value = identifier.get("base_value")
             compare_value = identifier.get("compare_value")

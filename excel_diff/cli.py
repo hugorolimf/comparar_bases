@@ -16,7 +16,7 @@ EXCEL_FOLDER = PROJECT_ROOT / "excel"
 def main() -> int:
     print("Comparador inteligente de Excel")
     print("------------------------------")
-    print("Fluxo guiado: escolha os arquivos, depois as abas e por fim a chave sugerida.")
+    print("Fluxo guiado: escolha os arquivos, depois as abas e por fim as chaves de pareamento e identificação.")
 
     excel_files = list_excel_files(EXCEL_FOLDER)
     if len(excel_files) < 2:
@@ -71,12 +71,32 @@ def main() -> int:
     key_column = choose_key_column(key_candidates)
     print(f"\nChave selecionada: {key_column}")
 
+    print("\nAgora escolha as colunas que vão identificar os diffs no resultado final.")
+    print("Essas colunas não alteram o pareamento principal; elas só organizam e deixam a saída mais legível.")
+    show_profile_columns(base_profile)
+    base_diff_columns = choose_profile_columns(base_profile, "Escolha as colunas de diff da base", allow_multiple=True)
+    show_profile_columns(compare_profile)
+    compare_diff_columns = choose_profile_columns(compare_profile, "Escolha as colunas de diff da comparação", allow_multiple=True)
+
+    while len(base_diff_columns) != len(compare_diff_columns):
+        print("A quantidade de colunas da base e da comparação precisa ser igual.")
+        show_profile_columns(base_profile)
+        base_diff_columns = choose_profile_columns(base_profile, "Escolha as colunas de diff da base", allow_multiple=True)
+        show_profile_columns(compare_profile)
+        compare_diff_columns = choose_profile_columns(compare_profile, "Escolha as colunas de diff da comparação", allow_multiple=True)
+
+    diff_key_pairs = list(zip(base_diff_columns, compare_diff_columns))
+    print("\nPares de identificação selecionados:")
+    for index, (base_column, compare_column) in enumerate(diff_key_pairs, start=1):
+        print(f"  {index}. Base: {base_column} -> Comparação: {compare_column}")
+
     result = compare_excels(
         base_path,
         compare_path,
         base_sheet,
         compare_sheet,
         key_column,
+        diff_key_pairs,
         base_profile=base_profile,
         compare_profile=compare_profile,
     )
@@ -154,6 +174,15 @@ def show_profile(label: str, profile) -> None:
     print(f"  Linhas amostradas: {profile.sample_row_count}")
     print(f"  Cabeçalhos detectados: {', '.join(profile.headers[:10])}")
     print(f"  Sugestões de chave: {', '.join(profile.key_suggestions[:5])}")
+    show_profile_columns(profile)
+
+
+def show_profile_columns(profile) -> None:
+    print("  Colunas disponíveis:")
+    for index, column in enumerate(profile.column_profiles, start=1):
+        print(
+            f"    {index}. {column.name} [tipo={column.dominant_type}, unicidade={column.unique_ratio:.2f}, vazios={column.null_ratio:.2f}]"
+        )
 
 
 def show_key_candidates(candidates) -> None:
@@ -169,9 +198,13 @@ def show_key_candidates(candidates) -> None:
 
 
 def choose_key_column(candidates) -> str:
+    return choose_key_columns(candidates, prompt_label="Escolha a chave de pareamento")
+
+
+def choose_key_columns(candidates, prompt_label: str = "Escolha a chave desejada") -> str:
     suggested = candidates[0].base_column
     while True:
-        choice = input(f"Escolha a chave desejada [Enter = {suggested}]: ").strip()
+        choice = input(f"{prompt_label} [Enter = {suggested}]: ").strip()
         if not choice:
             return suggested
         if choice.isdigit():
@@ -179,6 +212,46 @@ def choose_key_column(candidates) -> str:
             if 0 <= index < len(candidates):
                 return candidates[index].base_column
         print("Escolha inválida. Digite apenas o número da chave na lista.")
+
+
+def choose_profile_columns(profile, prompt_label: str = "Escolha as colunas", allow_multiple: bool = False):
+    columns = profile.column_profiles
+    suggested = columns[0].name if columns else ""
+    while True:
+        if allow_multiple:
+            choice = input(f"{prompt_label} [números separados por vírgula, Enter = {suggested}]: ").strip()
+            if not choice:
+                return [suggested] if suggested else []
+            indexes = parse_selection_indexes(choice, len(columns))
+            if indexes:
+                return [columns[index].name for index in indexes]
+        else:
+            choice = input(f"{prompt_label} [Enter = {suggested}]: ").strip()
+            if not choice:
+                return suggested
+            if choice.isdigit():
+                index = int(choice) - 1
+                if 0 <= index < len(columns):
+                    return columns[index].name
+        print("Escolha inválida. Digite apenas o número da chave na lista.")
+
+
+def parse_selection_indexes(choice: str, max_length: int) -> list[int]:
+    indexes = []
+    seen = set()
+    for part in choice.replace(";", ",").replace(" ", ",").split(","):
+        token = part.strip()
+        if not token:
+            continue
+        if not token.isdigit():
+            return []
+        index = int(token) - 1
+        if not 0 <= index < max_length:
+            return []
+        if index not in seen:
+            indexes.append(index)
+            seen.add(index)
+    return indexes
 
 
 def show_validation(result) -> None:

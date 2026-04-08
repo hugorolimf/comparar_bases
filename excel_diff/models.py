@@ -40,6 +40,12 @@ class ColumnMapping:
 
 
 @dataclass(slots=True)
+class DiffKeyPair:
+    base_column: str
+    compare_column: str
+
+
+@dataclass(slots=True)
 class KeyMatchCandidate:
     index: int
     base_column: str
@@ -67,6 +73,7 @@ class RowDiff:
     base_row_number: int | None
     compare_row_number: int | None
     status: str
+    diff_identifiers: list[dict[str, Any]] = field(default_factory=list)
     base_values: dict[str, Any] = field(default_factory=dict)
     compare_values: dict[str, Any] = field(default_factory=dict)
     changes: list[dict[str, Any]] = field(default_factory=list)
@@ -78,6 +85,7 @@ class ComparisonResult:
     compare_profile: SheetProfile
     key_column: str
     resolved_compare_key: str
+    diff_key_pairs: list[DiffKeyPair]
     column_mappings: list[ColumnMapping]
     validation_issues: list[ValidationIssue]
     matched_rows: list[RowDiff]

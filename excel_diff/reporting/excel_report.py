@@ -21,6 +21,8 @@ def write_excel_report(result: ComparisonResult, path: Path) -> None:
         ("Aba comparação", result.compare_profile.sheet_name),
         ("Chave base", result.key_column),
         ("Chave comparação", result.resolved_compare_key),
+        ("Chaves de identificação base", ", ".join(pair.base_column for pair in result.diff_key_pairs)),
+        ("Chaves de identificação comparação", ", ".join(pair.compare_column for pair in result.diff_key_pairs)),
         ("Linhas somente base", len(result.only_in_base)),
         ("Linhas somente comparação", len(result.only_in_compare)),
         ("Linhas alteradas", len([row for row in result.matched_rows if row.status == "changed"])),
@@ -61,33 +63,30 @@ def write_column_mappings(workbook: Workbook, result: ComparisonResult) -> None:
 def write_diff_sheet(workbook: Workbook, sheet_name: str, rows: list, result: ComparisonResult) -> None:
     sheet = workbook.create_sheet(sheet_name)
     headers = ["Categoria", "Chave", "Linha Base", "Linha Comparacao", "Status"]
-    headers.extend([f"Base - {column}" for column in result.base_profile.headers])
-    headers.extend([f"Comparacao - {column}" for column in result.compare_profile.headers])
-    headers.append("Mudancas")
+    for pair in result.diff_key_pairs:
+        headers.extend([
+            f"Base - {pair.base_column}",
+            f"Comparacao - {pair.compare_column}",
+            f"Diff - {pair.base_column} x {pair.compare_column}",
+        ])
     sheet.append(headers)
     for cell in sheet[1]:
         cell.font = Font(bold=True)
 
     for row in rows:
-        values = [
-            sheet_name,
-            row.key,
-            row.base_row_number,
-            row.compare_row_number,
-            row.status,
-        ]
-        values.extend([row.base_values.get(column) for column in result.base_profile.headers])
-        values.extend([row.compare_values.get(column) for column in result.compare_profile.headers])
-        values.append(format_changes(row.changes))
+        values = [sheet_name, row.key, row.base_row_number, row.compare_row_number, row.status]
+        for identifier in row.diff_identifiers:
+            base_value = identifier.get("base_value")
+            compare_value = identifier.get("compare_value")
+            values.extend([
+                base_value,
+                compare_value,
+                diff_cell_value(base_value, compare_value),
+            ])
         sheet.append(values)
 
 
-def format_changes(changes: list[dict]) -> str:
-    if not changes:
-        return ""
-    parts = []
-    for change in changes:
-        parts.append(
-            f"{change.get('column_base')} => {change.get('base_value')} | {change.get('column_compare')} => {change.get('compare_value')}"
-        )
-    return "; ".join(parts)
+def diff_cell_value(base_value, compare_value) -> str:
+    if base_value == compare_value:
+        return "OK"
+    return f"{base_value} -> {compare_value}"

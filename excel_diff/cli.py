@@ -117,10 +117,25 @@ def main() -> int:
         show_profile_columns(compare_profile)
         compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
-    diff_key_pairs = list(zip(base_diff_columns, compare_diff_columns))
-    console.print("\n[bold]Pares de identificação selecionados:[/bold]")
-    for index, (base_column, compare_column) in enumerate(diff_key_pairs, start=1):
-        console.print(f"  {index}. {base_file_name}: {base_column} -> {compare_file_name}: {compare_column}")
+    while True:
+        diff_key_pairs = list(zip(base_diff_columns, compare_diff_columns))
+        console.print("\n[bold]Pares de identificação selecionados:[/bold]")
+        for base_column, compare_column in diff_key_pairs:
+            console.print(f"  {base_column} -> {compare_column}")
+        if confirm_profile("Confirma?"):
+            break
+        console.print("[yellow]Vamos selecionar as colunas novamente.[/yellow]")
+        show_profile_columns(base_profile)
+        base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
+        show_profile_columns(compare_profile)
+        compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
+
+        while len(base_diff_columns) != len(compare_diff_columns):
+            console.print(f"[red]A quantidade de colunas escolhidas no arquivo {base_file_name} e no arquivo {compare_file_name} precisa ser igual.[/red]")
+            show_profile_columns(base_profile)
+            base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
+            show_profile_columns(compare_profile)
+            compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
     result = compare_excels(
         base_path,

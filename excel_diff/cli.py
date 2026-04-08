@@ -107,16 +107,16 @@ def main() -> int:
     console.print("\n[bold]Agora escolha as colunas que vão ajudar a identificar os diffs no resultado final.[/bold]")
     console.print("[dim]A ordem escolhida no primeiro arquivo será usada para montar os pares no segundo arquivo.[/dim]")
     console.print("[dim]Se a ordem estiver errada, escolha novamente antes de confirmar.[/dim]")
-    show_profile_columns(base_profile)
     base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
-    show_profile_columns(compare_profile)
+    console.print(f"[cyan]Selecionado no arquivo {base_file_name}:[/cyan] {', '.join(base_diff_columns)}")
+    console.print(f"[dim]Agora selecione as colunas correspondentes no arquivo {compare_file_name}, mantendo a mesma ordem.[/dim]")
     compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
     while len(base_diff_columns) != len(compare_diff_columns):
         console.print(f"[red]A quantidade de colunas escolhidas no arquivo {base_file_name} e no arquivo {compare_file_name} precisa ser igual.[/red]")
-        show_profile_columns(base_profile)
         base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
-        show_profile_columns(compare_profile)
+        console.print(f"[cyan]Selecionado no arquivo {base_file_name}:[/cyan] {', '.join(base_diff_columns)}")
+        console.print(f"[dim]Agora selecione as colunas correspondentes no arquivo {compare_file_name}, mantendo a mesma ordem.[/dim]")
         compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
     compare_diff_columns = normalize_compare_columns(base_diff_columns, compare_diff_columns)
@@ -130,16 +130,16 @@ def main() -> int:
         if confirm_profile("Confirma?"):
             break
         console.print("[yellow]Vamos selecionar as colunas novamente.[/yellow]")
-        show_profile_columns(base_profile)
         base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
-        show_profile_columns(compare_profile)
+        console.print(f"[cyan]Selecionado no arquivo {base_file_name}:[/cyan] {', '.join(base_diff_columns)}")
+        console.print(f"[dim]Agora selecione as colunas correspondentes no arquivo {compare_file_name}, mantendo a mesma ordem.[/dim]")
         compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
         while len(base_diff_columns) != len(compare_diff_columns):
             console.print(f"[red]A quantidade de colunas escolhidas no arquivo {base_file_name} e no arquivo {compare_file_name} precisa ser igual.[/red]")
-            show_profile_columns(base_profile)
             base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
-            show_profile_columns(compare_profile)
+            console.print(f"[cyan]Selecionado no arquivo {base_file_name}:[/cyan] {', '.join(base_diff_columns)}")
+            console.print(f"[dim]Agora selecione as colunas correspondentes no arquivo {compare_file_name}, mantendo a mesma ordem.[/dim]")
             compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
     console.print("[cyan]Processando...[/cyan]")

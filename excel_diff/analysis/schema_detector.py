@@ -8,7 +8,7 @@ from excel_diff.models import ColumnProfile, SheetProfile
 from excel_diff.utils.normalization import classify_value, normalize_header, normalize_text, normalize_value
 
 
-MAX_SAMPLE_ROWS = 100
+MAX_SAMPLE_ROWS = 1000
 
 
 def analyze_workbook(path: str | Path, sheet_name: str | None = None) -> SheetProfile:

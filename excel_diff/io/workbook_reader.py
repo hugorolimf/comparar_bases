@@ -36,7 +36,7 @@ def iter_sheet_rows(path: str | Path, sheet_name: str, start_row: int = 1, max_r
         workbook.close()
 
 
-def sample_sheet_rows(path: str | Path, sheet_name: str, max_rows: int = 100) -> list[tuple]:
+def sample_sheet_rows(path: str | Path, sheet_name: str, max_rows: int = 1000) -> list[tuple]:
     return list(iter_sheet_rows(path, sheet_name, start_row=1, max_rows=max_rows))
 
 

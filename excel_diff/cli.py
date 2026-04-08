@@ -3,6 +3,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from InquirerPy import inquirer
+from InquirerPy.base.control import Choice
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
 from excel_diff.analysis.schema_detector import analyze_workbook
 from excel_diff.analysis.compatibility import rank_key_candidates
 from excel_diff.io.workbook_reader import list_sheets
@@ -18,84 +25,102 @@ def get_project_root() -> Path:
 
 PROJECT_ROOT = get_project_root()
 EXCEL_FOLDER = PROJECT_ROOT / "excel"
+console = Console()
+
+
+def make_choice_label(prefix: int, title: str, details: str | None = None) -> str:
+    if details:
+        return f"{prefix}. {title} - {details}"
+    return f"{prefix}. {title}"
 
 
 def main() -> int:
-    print("Comparador inteligente de Excel")
-    print("------------------------------")
-    print("Fluxo guiado: escolha os arquivos, depois as abas e por fim as chaves de pareamento e identificação.")
+    console.print(
+        Panel.fit(
+            "Fluxo guiado: escolha o primeiro arquivo, depois o segundo arquivo, as abas e por fim as chaves de pareamento e identificação.",
+            title="Comparar Excel - Nectar",
+            border_style="cyan",
+        )
+    )
 
     excel_files = list_excel_files(EXCEL_FOLDER)
     if len(excel_files) < 2:
-        print(f"É necessário ter pelo menos 2 arquivos Excel na pasta {EXCEL_FOLDER}.")
+        console.print(f"[red]É necessário ter pelo menos 2 arquivos Excel na pasta {EXCEL_FOLDER}.[/red]")
         return 1
 
-    print(f"\nArquivos disponíveis em {EXCEL_FOLDER}:")
+    console.print(f"\n[bold]Arquivos encontrados em {EXCEL_FOLDER}:[/bold]")
     show_file_options(excel_files)
 
-    base_path = ask_file_choice("Escolha o Excel base", excel_files)
-    compare_path = ask_file_choice("Escolha o Excel de comparação", excel_files)
+    base_path = ask_file_choice("Escolha o primeiro arquivo para iniciar a comparação", excel_files)
+    compare_files = [path for path in excel_files if str(path) != base_path]
+    compare_path = ask_file_choice("Escolha o segundo arquivo para comparar com o primeiro selecionado", compare_files)
 
     if base_path == compare_path:
-        print("Os arquivos base e comparação precisam ser diferentes.")
+        console.print("[red]O primeiro arquivo e o segundo arquivo precisam ser diferentes.[/red]")
         return 1
 
     base_sheets = list_sheets(base_path)
     compare_sheets = list_sheets(compare_path)
+    base_file_name = Path(base_path).name
+    compare_file_name = Path(compare_path).name
 
-    print(f"\nArquivo base selecionado: {Path(base_path).name}")
-    print(f"Arquivo de comparação selecionado: {Path(compare_path).name}")
-
-    print("\nAbas disponíveis na base:")
-    show_sheet_options(base_sheets)
-    print("\nAbas disponíveis na comparação:")
-    show_sheet_options(compare_sheets)
+    console.print(f"\n[green]Arquivo selecionado para iniciar a comparação:[/green] {base_file_name}")
+    console.print(f"[green]Arquivo de comparação selecionado:[/green] {compare_file_name}")
 
     base_preview = analyze_workbook(base_path, base_sheets[0])
-    compare_preview = analyze_workbook(compare_path, compare_sheets[0])
-
-    base_sheet = ask_sheet_choice("Escolha a aba base: ", base_sheets, default=base_preview.sheet_name)
-    compare_sheet = ask_sheet_choice("Escolha a aba comparação: ", compare_sheets, default=compare_preview.sheet_name)
+    base_sheet = ask_sheet_choice(f"Escolha a aba do arquivo {base_file_name}", base_sheets, default=base_preview.sheet_name)
 
     base_profile = analyze_workbook(base_path, base_sheet)
+    while True:
+        show_profile(base_file_name, base_profile)
+        if confirm_profile(f"Esta é a aba correta do arquivo {base_file_name}?"):
+            break
+        base_sheet = ask_sheet_choice(f"Escolha novamente a aba do arquivo {base_file_name}", base_sheets, default=base_sheet)
+        base_profile = analyze_workbook(base_path, base_sheet)
+
+    compare_preview = analyze_workbook(compare_path, compare_sheets[0])
+    compare_sheet = ask_sheet_choice(f"Escolha a aba do arquivo {compare_file_name}", compare_sheets, default=compare_preview.sheet_name)
     compare_profile = analyze_workbook(compare_path, compare_sheet)
 
-    if not base_profile.column_profiles or not compare_profile.column_profiles:
-        print("Não foi possível identificar colunas suficientes para comparar os arquivos.")
-        return 1
+    while True:
+        show_profile(compare_file_name, compare_profile)
+        if confirm_profile(f"Esta é a aba correta do arquivo {compare_file_name}?"):
+            break
+        compare_sheet = ask_sheet_choice(f"Escolha novamente a aba do arquivo {compare_file_name}", compare_sheets, default=compare_sheet)
+        compare_profile = analyze_workbook(compare_path, compare_sheet)
 
-    show_profile("Base", base_profile)
-    show_profile("Comparação", compare_profile)
+    if not base_profile.column_profiles or not compare_profile.column_profiles:
+        console.print("[red]Não foi possível identificar colunas suficientes para analisar os dois arquivos.[/red]")
+        return 1
 
     key_candidates = rank_key_candidates(base_profile, compare_profile)
     if not key_candidates:
-        print("Não foi possível sugerir uma chave com base nos dois arquivos.")
+        console.print("[red]Não foi possível sugerir uma chave de pareamento a partir dos dois arquivos.[/red]")
         return 1
 
-    print("\nMelhores matches para chave de comparação:")
+    console.print("\n[bold]Melhores opções de chave para pareamento:[/bold]")
     show_key_candidates(key_candidates[:10])
 
     key_column = choose_key_column(key_candidates)
-    print(f"\nChave selecionada: {key_column}")
+    console.print(f"\n[green]Chave de pareamento selecionada:[/green] {key_column}")
 
-    print("\nAgora escolha as colunas que vão identificar os diffs no resultado final.")
-    print("Essas colunas não alteram o pareamento principal; elas só organizam e deixam a saída mais legível.")
+    console.print("\n[bold]Agora escolha as colunas que vão ajudar a identificar os diffs no resultado final.[/bold]")
     show_profile_columns(base_profile)
-    base_diff_columns = choose_profile_columns(base_profile, "Escolha as colunas de diff da base", allow_multiple=True)
+    base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
     show_profile_columns(compare_profile)
-    compare_diff_columns = choose_profile_columns(compare_profile, "Escolha as colunas de diff da comparação", allow_multiple=True)
+    compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
     while len(base_diff_columns) != len(compare_diff_columns):
-        print("A quantidade de colunas da base e da comparação precisa ser igual.")
+        console.print(f"[red]A quantidade de colunas escolhidas no arquivo {base_file_name} e no arquivo {compare_file_name} precisa ser igual.[/red]")
         show_profile_columns(base_profile)
-        base_diff_columns = choose_profile_columns(base_profile, "Escolha as colunas de diff da base", allow_multiple=True)
+        base_diff_columns = choose_profile_columns(base_profile, f"Escolha as colunas de identificação do arquivo {base_file_name}", allow_multiple=True)
         show_profile_columns(compare_profile)
-        compare_diff_columns = choose_profile_columns(compare_profile, "Escolha as colunas de diff da comparação", allow_multiple=True)
+        compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
     diff_key_pairs = list(zip(base_diff_columns, compare_diff_columns))
-    print("\nPares de identificação selecionados:")
+    console.print("\n[bold]Pares de identificação selecionados:[/bold]")
     for index, (base_column, compare_column) in enumerate(diff_key_pairs, start=1):
-        print(f"  {index}. Base: {base_column} -> Comparação: {compare_column}")
+        console.print(f"  {index}. {base_file_name}: {base_column} -> {compare_file_name}: {compare_column}")
 
     result = compare_excels(
         base_path,
@@ -110,24 +135,25 @@ def main() -> int:
     show_validation(result)
 
     if result.has_errors:
-        print("Comparação bloqueada devido a erros de validação.")
+        console.print("[red]A comparação foi bloqueada devido a erros de validação.[/red]")
         return 1
 
-    output_dir = ask_text("Diretório de saída [padrão: ./saida]: ", default=str(Path.cwd() / "saida"))
-    output_name = ask_text("Nome do arquivo de saída [padrão: diff_gerado]: ", default="diff_gerado")
+    output_dir = ask_text("Onde você quer salvar o resultado? [padrão: ./saida]: ", default=str(Path.cwd() / "saida"))
+    output_name = ask_text("Como você quer nomear o arquivo gerado? [padrão: diff_gerado]: ", default="diff_gerado")
     excel_path, visual_path, json_path = write_outputs(result, output_dir=output_dir, output_name=output_name)
 
-    print(f"Excel gerado em: {excel_path}")
-    print(f"Excel visual gerado em: {visual_path}")
-    print(f"JSON gerado em: {json_path}")
+    console.print(f"[green]Excel gerado em:[/green] {excel_path}")
+    console.print(f"[green]Excel visual gerado em:[/green] {visual_path}")
+    console.print(f"[green]JSON gerado em:[/green] {json_path}")
     return 0
 
 
 def ask_text(prompt: str, default: str | None = None) -> str:
-    value = input(prompt).strip()
-    if value:
-        return value
-    return default or ""
+    return inquirer.text(message=prompt, default=default or "").execute().strip()
+
+
+def confirm_profile(prompt: str) -> bool:
+    return bool(inquirer.confirm(message=prompt, default=True).execute())
 
 
 def list_excel_files(folder: Path) -> list[Path]:
@@ -140,132 +166,130 @@ def list_excel_files(folder: Path) -> list[Path]:
 
 
 def show_file_options(options: list[Path]) -> None:
+    table = Table(box=box.SIMPLE_HEAVY, show_header=True, header_style="bold cyan")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Arquivo")
     for index, file_path in enumerate(options, start=1):
-        print(f"  {index}. {file_path.name}")
+        table.add_row(str(index), file_path.name)
+    console.print(table)
 
 
 def ask_file_choice(prompt: str, options: list[Path]) -> str:
-    while True:
-        value = input(f"{prompt} [número]: ").strip().strip('"')
-        if value.isdigit():
-            index = int(value) - 1
-            if 0 <= index < len(options):
-                selected = options[index]
-                print(f"Selecionado: {selected.name}")
-                return str(selected)
-        print("Escolha inválida. Digite apenas o número do arquivo na lista.")
+    selected = inquirer.select(
+        message=prompt,
+        choices=[Choice(value=file_path, name=make_choice_label(index, file_path.name)) for index, file_path in enumerate(options, start=1)],
+    ).execute()
+    console.print(f"[green]Selecionado:[/green] {selected.name}")
+    return str(selected)
 
 
 def ask_sheet_choice(prompt: str, options: list[str], default: str) -> str:
-    while True:
-        value = input(f"{prompt} [número, padrão: {default}]: ").strip()
-        if not value:
-            print(f"Selecionado: {default}")
-            return default
-        if value.isdigit():
-            index = int(value) - 1
-            if 0 <= index < len(options):
-                selected = options[index]
-                print(f"Selecionado: {selected}")
-                return selected
-        print("Escolha inválida. Digite apenas o número da aba na lista.")
-
-
-def show_sheet_options(options: list[str]) -> None:
-    for index, sheet_name in enumerate(options, start=1):
-        print(f"  {index}. {sheet_name}")
+    selected = inquirer.select(
+        message=prompt,
+        choices=[Choice(value=sheet_name, name=make_choice_label(index, sheet_name)) for index, sheet_name in enumerate(options, start=1)],
+        default=default,
+    ).execute()
+    console.print(f"[green]Selecionado:[/green] {selected}")
+    return selected
 
 
 def show_profile(label: str, profile) -> None:
-    print(f"\n{label}:")
-    print(f"  Aba: {profile.sheet_name}")
-    print(f"  Linhas amostradas: {profile.sample_row_count}")
-    print(f"  Cabeçalhos detectados: {', '.join(profile.headers[:10])}")
-    print(f"  Sugestões de chave: {', '.join(profile.key_suggestions[:5])}")
+    console.print(f"\n[bold]{label}[/bold]")
     show_profile_columns(profile)
 
 
 def show_profile_columns(profile) -> None:
-    print("  Colunas disponíveis:")
+    table = Table(box=box.SIMPLE, show_header=True, header_style="bold cyan")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Coluna")
+    table.add_column("Tipo")
+    table.add_column("Unicidade", justify="right")
+    table.add_column("Vazios", justify="right")
     for index, column in enumerate(profile.column_profiles, start=1):
-        print(
-            f"    {index}. {column.name} [tipo={column.dominant_type}, unicidade={column.unique_ratio:.2f}, vazios={column.null_ratio:.2f}]"
+        table.add_row(
+            str(index),
+            column.name,
+            column.dominant_type,
+            f"{column.unique_ratio:.2f}",
+            f"{column.null_ratio:.2f}",
         )
+    console.print(table)
 
 
 def show_key_candidates(candidates) -> None:
+    table = Table(box=box.SIMPLE_HEAVY, show_header=True, header_style="bold cyan")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Primeiro arquivo -> Segundo arquivo")
+    table.add_column("Score", justify="right")
     for candidate in candidates:
-        recommendation = " (recomendado)" if candidate.index == 1 else ""
-        print(
-            f"  {candidate.index}. {candidate.base_column} -> {candidate.compare_column}{recommendation}"
+        table.add_row(
+            str(candidate.index),
+            f"{candidate.base_column} -> {candidate.compare_column}",
+            f"{candidate.score:.2f}",
         )
-        print(
-            f"     match={candidate.score:.2f} | base_unicidade={candidate.base_unique_ratio:.2f} | "
-            f"comparacao_unicidade={candidate.compare_unique_ratio:.2f} | tipo_base={candidate.base_type} | tipo_comparacao={candidate.compare_type}"
-        )
+    console.print(table)
 
 
 def choose_key_column(candidates) -> str:
-    return choose_key_columns(candidates, prompt_label="Escolha a chave de pareamento")
+    return choose_key_columns(candidates, prompt_label="Escolha a chave que melhor liga os dois arquivos")
 
 
 def choose_key_columns(candidates, prompt_label: str = "Escolha a chave desejada") -> str:
-    suggested = candidates[0].base_column
-    while True:
-        choice = input(f"{prompt_label} [Enter = {suggested}]: ").strip()
-        if not choice:
-            return suggested
-        if choice.isdigit():
-            index = int(choice) - 1
-            if 0 <= index < len(candidates):
-                return candidates[index].base_column
-        print("Escolha inválida. Digite apenas o número da chave na lista.")
+    selected = inquirer.select(
+        message=prompt_label,
+        choices=[
+            Choice(value=candidate.index, name=f"{candidate.base_column} -> {candidate.compare_column}")
+            for candidate in candidates
+        ],
+        default=candidates[0].index,
+    ).execute()
+    selected_index = selected.get("value") if isinstance(selected, dict) else selected
+    selected_candidate = next((candidate for candidate in candidates if candidate.index == selected_index), candidates[0])
+    return selected_candidate.base_column
 
 
 def choose_profile_columns(profile, prompt_label: str = "Escolha as colunas", allow_multiple: bool = False):
     columns = profile.column_profiles
     suggested = columns[0].name if columns else ""
-    while True:
-        if allow_multiple:
-            choice = input(f"{prompt_label} [números separados por vírgula, Enter = {suggested}]: ").strip()
-            if not choice:
-                return [suggested] if suggested else []
-            indexes = parse_selection_indexes(choice, len(columns))
-            if indexes:
-                return [columns[index].name for index in indexes]
-        else:
-            choice = input(f"{prompt_label} [Enter = {suggested}]: ").strip()
-            if not choice:
-                return suggested
-            if choice.isdigit():
-                index = int(choice) - 1
-                if 0 <= index < len(columns):
-                    return columns[index].name
-        print("Escolha inválida. Digite apenas o número da chave na lista.")
+    if allow_multiple:
+        selected = inquirer.checkbox(
+            message=prompt_label,
+            instruction="Use espaço para marcar ou desmarcar as opções e Enter para confirmar.",
+            choices=[
+                Choice(
+                    value=column.name,
+                    name=column.name,
+                )
+                for index, column in enumerate(columns, start=1)
+            ],
+            validate=lambda result: len(result) >= 1,
+            invalid_message="Escolha pelo menos uma coluna para continuar.",
+        ).execute()
+        return selected
 
-
-def parse_selection_indexes(choice: str, max_length: int) -> list[int]:
-    indexes = []
-    seen = set()
-    for part in choice.replace(";", ",").replace(" ", ",").split(","):
-        token = part.strip()
-        if not token:
-            continue
-        if not token.isdigit():
-            return []
-        index = int(token) - 1
-        if not 0 <= index < max_length:
-            return []
-        if index not in seen:
-            indexes.append(index)
-            seen.add(index)
-    return indexes
+    selected = inquirer.select(
+        message=prompt_label,
+        choices=[
+            Choice(
+                value=column.name,
+                name=column.name,
+            )
+            for index, column in enumerate(columns, start=1)
+        ],
+        default=suggested,
+    ).execute()
+    return selected
 
 
 def show_validation(result) -> None:
     if not result.validation_issues:
-        print("Validação: ok")
+        console.print("[green]Validação: ok[/green]")
         return
-    print("\nValidação:")
+    table = Table(box=box.SIMPLE, show_header=True, header_style="bold cyan")
+    table.add_column("Nível", style="bold")
+    table.add_column("Mensagem")
     for issue in result.validation_issues:
-        print(f"  [{issue.level}] {issue.message}")
+        style = "red" if issue.level == "error" else "yellow"
+        table.add_row(f"[{style}]{issue.level}[/{style}]", issue.message)
+    console.print("\n[bold]Validação:[/bold]")
+    console.print(table)

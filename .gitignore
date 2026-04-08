@@ -1,0 +1,4 @@
+.venv/
+build/
+dist/
+excel_diff/reporting/__pycache__/

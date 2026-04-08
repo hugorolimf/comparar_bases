@@ -22,11 +22,13 @@ Antes da escolha da chave, o script mostra os melhores matches encontrados entre
 ## Saídas
 
 - Arquivo `.xlsx` com abas `Resumo`, `Mapeamento`, `Adição`, `Exclusão`, `Alteração` e `Igual`.
+- Arquivo `.xlsx` visual com abas `Igual`, `Alteração`, `Exclusão` e `Adição`, mantendo as colunas da base.
 - Arquivo `.json` com a mesma estrutura para automação.
 
 ## Exportação
 
 - `excel_diff/reporting/excel_report.py`: exportação exclusiva para Excel.
+- `excel_diff/reporting/visual_report.py`: exportação do workbook visual.
 - `excel_diff/reporting/json_report.py`: exportação exclusiva para JSON.
 - `excel_diff/reporting/report_writer.py`: orquestra os dois módulos sem misturar a lógica.
 
@@ -43,3 +45,8 @@ Antes da escolha da chave, o script mostra os melhores matches encontrados entre
 ## Dependências
 
 - `openpyxl`
+
+
+---
+
+.\.venv\Scripts\python.exe -m PyInstaller --onedir --name ComparadorExcel --add-data "excel;excel" main.py

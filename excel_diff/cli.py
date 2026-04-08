@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from excel_diff.analysis.schema_detector import analyze_workbook
@@ -9,7 +10,13 @@ from excel_diff.comparison.diff_engine import compare_excels
 from excel_diff.reporting.report_writer import write_outputs
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+def get_project_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[1]
+
+
+PROJECT_ROOT = get_project_root()
 EXCEL_FOLDER = PROJECT_ROOT / "excel"
 
 
@@ -108,9 +115,10 @@ def main() -> int:
 
     output_dir = ask_text("Diretório de saída [padrão: ./saida]: ", default=str(Path.cwd() / "saida"))
     output_name = ask_text("Nome do arquivo de saída [padrão: diff_gerado]: ", default="diff_gerado")
-    excel_path, json_path = write_outputs(result, output_dir=output_dir, output_name=output_name)
+    excel_path, visual_path, json_path = write_outputs(result, output_dir=output_dir, output_name=output_name)
 
     print(f"Excel gerado em: {excel_path}")
+    print(f"Excel visual gerado em: {visual_path}")
     print(f"JSON gerado em: {json_path}")
     return 0
 

@@ -117,6 +117,8 @@ def main() -> int:
         show_profile_columns(compare_profile)
         compare_diff_columns = choose_profile_columns(compare_profile, f"Escolha as colunas de identificação do arquivo {compare_file_name}", allow_multiple=True)
 
+    compare_diff_columns = normalize_compare_columns(base_diff_columns, compare_diff_columns)
+
     while True:
         diff_key_pairs = list(zip(base_diff_columns, compare_diff_columns))
         console.print("\n[bold]Pares de identificação selecionados:[/bold]")
@@ -169,6 +171,19 @@ def ask_text(prompt: str, default: str | None = None) -> str:
 
 def confirm_profile(prompt: str) -> bool:
     return bool(inquirer.confirm(message=prompt, default=True).execute())
+
+
+def normalize_compare_columns(base_columns: list[str], compare_columns: list[str]) -> list[str]:
+    compare_remaining = list(compare_columns)
+    ordered_compare: list[str] = []
+
+    for base_column in base_columns:
+        if base_column in compare_remaining:
+            ordered_compare.append(base_column)
+            compare_remaining.remove(base_column)
+
+    ordered_compare.extend(compare_remaining)
+    return ordered_compare
 
 
 def list_excel_files(folder: Path) -> list[Path]:
